@@ -1,0 +1,461 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Screen Recorder Pro</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        
+        /* Custom Checkbox Styling */
+        .custom-checkbox input:checked + div {
+            background-color: #3b82f6;
+            border-color: #3b82f6;
+        }
+        .custom-checkbox input:checked + div svg {
+            display: block;
+        }
+        
+        /* Pulse animation for recording indicator */
+        @keyframes pulse-ring {
+            0% { transform: scale(0.8); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); }
+            70% { transform: scale(1); box-shadow: 0 0 0 10px rgba(239, 68, 68, 0); }
+            100% { transform: scale(0.8); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+        }
+        .recording-pulse {
+            animation: pulse-ring 2s infinite;
+        }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen text-gray-800 antialiased flex flex-col items-center py-12 px-4 sm:px-6 lg:px-8">
+
+    <!-- Header -->
+    <div class="max-w-3xl w-full text-center mb-10">
+        <h1 class="text-4xl font-extrabold tracking-tight text-gray-900 sm:text-5xl mb-4">
+            Screen Recorder <span class="text-blue-600">Pro</span>
+        </h1>
+        <p class="text-lg text-gray-500">
+            Advanced screen capturing with dual-audio mixing and backend subtitle generation architecture.
+        </p>
+    </div>
+
+    <!-- Main Container -->
+    <div class="max-w-3xl w-full bg-white rounded-2xl shadow-xl overflow-hidden border border-gray-100">
+        
+        <!-- Configuration Section -->
+        <div class="p-8 sm:p-10" id="config-section">
+            <h2 class="text-xl font-semibold mb-6 text-gray-700 border-b pb-2">Recording Settings</h2>
+            
+            <div class="space-y-6">
+                <!-- Filename Input -->
+                <div>
+                    <label for="filename" class="block text-sm font-medium text-gray-700 mb-1">File Name</label>
+                    <input type="text" id="filename" name="filename" placeholder="e.g., product_demo_v1" 
+                        class="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm px-4 py-3 border outline-none transition duration-150">
+                </div>
+
+                <div class="flex flex-col sm:flex-row gap-6">
+                    <!-- Audio Checkbox -->
+                    <label class="custom-checkbox flex items-center cursor-pointer group">
+                        <input type="checkbox" id="enable-audio" class="hidden" checked>
+                        <div class="w-6 h-6 border-2 border-gray-300 rounded flex items-center justify-center transition-colors duration-200 group-hover:border-blue-400">
+                            <svg class="w-4 h-4 text-white hidden pointer-events-none" viewBox="0 0 20 20" fill="currentColor">
+                                <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" />
+                            </svg>
+                        </div>
+                        <span class="ml-3 text-gray-700 font-medium">Enable Audio (Mic + System)</span>
+                    </label>
+
+                    <!-- Subtitles Checkbox -->
+                    <label class="custom-checkbox flex items-center cursor-pointer group">
+                        <input type="checkbox" id="enable-subtitles" class="hidden" checked>
+                        <div class="w-6 h-6 border-2 border-gray-300 rounded flex items-center justify-center transition-colors duration-200 group-hover:border-blue-400" id="sub-checkbox-box">
+                            <svg class="w-4 h-4 text-white hidden pointer-events-none" viewBox="0 0 20 20" fill="currentColor">
+                                <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" />
+                            </svg>
+                        </div>
+                        <span class="ml-3 text-gray-700 font-medium" id="sub-label">Generate Subtitles (Backend)</span>
+                    </label>
+                </div>
+
+                <div id="subtitle-warning" class="hidden text-sm text-amber-600 bg-amber-50 p-3 rounded-md border border-amber-200">
+                    <svg class="w-4 h-4 inline-block mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                    Subtitles require audio. Since audio is disabled, subtitle generation will be skipped.
+                </div>
+
+                <!-- Controls -->
+                <div class="pt-4 flex items-center justify-between border-t border-gray-100">
+                    <div id="recording-status" class="hidden flex items-center text-red-600 font-semibold">
+                        <div class="w-3 h-3 rounded-full bg-red-500 mr-3 recording-pulse"></div>
+                        Recording in progress...
+                    </div>
+                    <div id="idle-status" class="text-gray-400 text-sm">
+                        Ready to record
+                    </div>
+
+                    <div class="flex gap-3 ml-auto">
+                        <button id="start-btn" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-6 rounded-lg shadow-md transition duration-200 flex items-center">
+                            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg>
+                            Start Recording
+                        </button>
+                        <button id="stop-btn" class="hidden bg-red-600 hover:bg-red-700 text-white font-semibold py-3 px-6 rounded-lg shadow-md transition duration-200 flex items-center">
+                            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 10a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1v-4z"></path></svg>
+                            Stop Recording
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Preview Section (Hidden by default) -->
+        <div id="preview-section" class="hidden bg-gray-900 p-8 sm:p-10 border-t border-gray-800">
+            <h2 class="text-xl font-semibold mb-6 text-white flex items-center justify-between">
+                <span>Recording Preview</span>
+                <button id="new-record-btn" class="text-sm bg-gray-800 hover:bg-gray-700 text-gray-300 py-1.5 px-4 rounded-md transition border border-gray-700">Record New</button>
+            </h2>
+            
+            <div class="rounded-xl overflow-hidden shadow-2xl bg-black mb-6 border border-gray-700">
+                <video id="preview-video" controls class="w-full h-auto max-h-[500px]"></video>
+            </div>
+
+            <!-- Subtitle Processing Status -->
+            <div id="backend-status-container" class="hidden bg-gray-800 rounded-lg p-4 mb-6 border border-gray-700">
+                <div class="flex items-center" id="processing-status">
+                    <svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-blue-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    <span class="text-gray-300 text-sm">Sending separated audio track to backend for subtitle generation...</span>
+                </div>
+                <div class="hidden flex items-center text-green-400" id="success-status">
+                    <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                    <span class="text-sm">Subtitles generated successfully! (Mock API response)</span>
+                </div>
+            </div>
+
+            <div class="flex justify-end gap-4">
+                <button id="download-btn" class="bg-blue-600 hover:bg-blue-500 text-white font-semibold py-3 px-8 rounded-lg shadow-lg transition duration-200 flex items-center">
+                    <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+                    Download Video (.webm)
+                </button>
+                <button id="download-sub-btn" class="hidden bg-gray-700 hover:bg-gray-600 text-white font-semibold py-3 px-6 rounded-lg shadow-lg transition duration-200 flex items-center border border-gray-600">
+                    <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                    Download Subtitles (.srt)
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Custom Modal for Errors/Messages -->
+    <div id="custom-modal" class="fixed inset-0 z-50 hidden bg-gray-900 bg-opacity-60 flex items-center justify-center backdrop-blur-sm transition-opacity">
+        <div class="bg-white rounded-xl shadow-2xl p-8 max-w-md w-full mx-4 transform scale-95 transition-transform duration-200" id="modal-content">
+            <div class="flex items-center justify-center w-12 h-12 mx-auto mb-4 bg-red-100 rounded-full">
+                <svg class="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+            </div>
+            <h3 class="text-lg font-medium text-center text-gray-900 mb-2" id="modal-title">Attention Needed</h3>
+            <p class="text-sm text-center text-gray-500 mb-6" id="modal-msg">Error message goes here.</p>
+            <div class="flex justify-center">
+                <button id="modal-close" class="bg-gray-900 hover:bg-gray-800 text-white font-medium py-2 px-6 rounded-lg transition duration-150 w-full">Understood</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // DOM Elements
+        const audioCheckbox = document.getElementById('enable-audio');
+        const subCheckbox = document.getElementById('enable-subtitles');
+        const subCheckboxBox = document.getElementById('sub-checkbox-box');
+        const subLabel = document.getElementById('sub-label');
+        const subWarning = document.getElementById('subtitle-warning');
+        
+        const startBtn = document.getElementById('start-btn');
+        const stopBtn = document.getElementById('stop-btn');
+        const filenameInput = document.getElementById('filename');
+        
+        const statusRecording = document.getElementById('recording-status');
+        const statusIdle = document.getElementById('idle-status');
+        const configSection = document.getElementById('config-section');
+        const previewSection = document.getElementById('preview-section');
+        const previewVideo = document.getElementById('preview-video');
+        
+        const downloadBtn = document.getElementById('download-btn');
+        const downloadSubBtn = document.getElementById('download-sub-btn');
+        const newRecordBtn = document.getElementById('new-record-btn');
+        
+        const backendStatusContainer = document.getElementById('backend-status-container');
+        const processingStatus = document.getElementById('processing-status');
+        const successStatus = document.getElementById('success-status');
+
+        // Modal Elements
+        const modal = document.getElementById('custom-modal');
+        const modalMsg = document.getElementById('modal-msg');
+        const modalTitle = document.getElementById('modal-title');
+        const modalClose = document.getElementById('modal-close');
+
+        // State Variables
+        let videoRecorder = null;
+        let audioRecorder = null; // The second recorder just for audio (Option C architecture)
+        let videoChunks = [];
+        let audioChunks = [];
+        let allMediaTracks = [];
+        let audioCtx = null;
+
+        // UI Logic: Audio toggle disables subtitle logic visually
+        audioCheckbox.addEventListener('change', (e) => {
+            const isAudioEnabled = e.target.checked;
+            if (!isAudioEnabled) {
+                subCheckboxBox.classList.add('opacity-50', 'bg-gray-100');
+                subLabel.classList.add('opacity-50');
+                subWarning.classList.remove('hidden');
+                // Don't uncheck it, just show warning. Logic will ignore it.
+            } else {
+                subCheckboxBox.classList.remove('opacity-50', 'bg-gray-100');
+                subLabel.classList.remove('opacity-50');
+                subWarning.classList.add('hidden');
+            }
+        });
+
+        // Custom Modal Functions
+        function showModal(title, message) {
+            modalTitle.textContent = title;
+            modalMsg.textContent = message;
+            modal.classList.remove('hidden');
+            // Tiny delay to allow display:block to apply before scaling for animation
+            setTimeout(() => {
+                document.getElementById('modal-content').classList.remove('scale-95');
+                document.getElementById('modal-content').classList.add('scale-100');
+            }, 10);
+        }
+
+        modalClose.addEventListener('click', () => {
+            document.getElementById('modal-content').classList.remove('scale-100');
+            document.getElementById('modal-content').classList.add('scale-95');
+            setTimeout(() => modal.classList.add('hidden'), 200);
+        });
+
+        // Start Recording Logic
+        startBtn.addEventListener('click', async () => {
+            videoChunks = [];
+            audioChunks = [];
+            allMediaTracks = [];
+            
+            const useAudio = audioCheckbox.checked;
+            // Subtitles only matter if audio is also enabled
+            const generateSubs = useAudio && subCheckbox.checked;
+
+            try {
+                // 1. Get Screen Video (and potentially System Audio)
+                const displayStream = await navigator.mediaDevices.getDisplayMedia({
+                    video: { frameRate: { ideal: 30 } },
+                    audio: useAudio ? { echoCancellation: false, noiseSuppression: false } : false
+                });
+                
+                // Track cleanup helper
+                displayStream.getTracks().forEach(t => allMediaTracks.push(t));
+
+                // Detect native 'Stop Sharing' button
+                displayStream.getVideoTracks()[0].onended = () => {
+                    if (videoRecorder && videoRecorder.state !== 'inactive') {
+                        stopRecording();
+                    }
+                };
+
+                let finalVideoStream = new MediaStream([displayStream.getVideoTracks()[0]]);
+                let mixedAudioStream = null;
+
+                // 2. Audio Mixing Logic (Web Audio API)
+                if (useAudio) {
+                    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                    const audioDestination = audioCtx.createMediaStreamDestination();
+                    mixedAudioStream = audioDestination.stream;
+
+                    // A. System Audio (from getDisplayMedia)
+                    if (displayStream.getAudioTracks().length > 0) {
+                        const systemAudioSource = audioCtx.createMediaStreamSource(new MediaStream(displayStream.getAudioTracks()));
+                        systemAudioSource.connect(audioDestination);
+                    } else {
+                        console.warn("No system audio captured. (Normal for Safari or some OS level restrictions)");
+                    }
+
+                    // B. Microphone Audio
+                    try {
+                        const micStream = await navigator.mediaDevices.getUserMedia({
+                            audio: { echoCancellation: true, noiseSuppression: true }
+                        });
+                        micStream.getTracks().forEach(t => allMediaTracks.push(t));
+                        
+                        if (micStream.getAudioTracks().length > 0) {
+                            const micAudioSource = audioCtx.createMediaStreamSource(micStream);
+                            micAudioSource.connect(audioDestination);
+                        }
+                    } catch (micErr) {
+                        console.warn("Microphone access denied or unavailable. Only recording system audio (if available).");
+                        // We don't abort, we just record without mic.
+                    }
+
+                    // Add mixed audio to the final video stream
+                    mixedAudioStream.getAudioTracks().forEach(track => {
+                        finalVideoStream.addTrack(track);
+                        allMediaTracks.push(track);
+                    });
+                }
+
+                // 3. Setup Dual MediaRecorders
+                
+                // Recorder 1: Full Video + Mixed Audio (For user download)
+                videoRecorder = new MediaRecorder(finalVideoStream, { 
+                    mimeType: MediaRecorder.isTypeSupported('video/webm; codecs=vp8,opus') 
+                              ? 'video/webm; codecs=vp8,opus' 
+                              : 'video/webm' 
+                });
+                
+                videoRecorder.ondataavailable = (e) => {
+                    if (e.data && e.data.size > 0) videoChunks.push(e.data);
+                };
+
+                videoRecorder.onstop = handleVideoStop;
+
+                // Recorder 2: Pure Audio (For Backend Subtitle Generation)
+                if (generateSubs && mixedAudioStream) {
+                    audioRecorder = new MediaRecorder(mixedAudioStream);
+                    audioRecorder.ondataavailable = (e) => {
+                        if (e.data && e.data.size > 0) audioChunks.push(e.data);
+                    };
+                    audioRecorder.onstop = handleAudioStop;
+                    audioRecorder.start(1000); // chunk every second
+                }
+
+                videoRecorder.start(1000);
+
+                // UI Updates
+                startBtn.classList.add('hidden');
+                stopBtn.classList.remove('hidden');
+                statusIdle.classList.add('hidden');
+                statusRecording.classList.remove('hidden');
+                
+                // Disable inputs while recording
+                filenameInput.disabled = true;
+                audioCheckbox.disabled = true;
+                subCheckbox.disabled = true;
+
+            } catch (error) {
+                if (error.name === 'NotAllowedError') {
+                    showModal("Permission Denied", "Please grant permission to record your screen and microphone to proceed.");
+                } else {
+                    showModal("Recording Error", error.message);
+                }
+            }
+        });
+
+        // Stop Recording Logic
+        function stopRecording() {
+            if (videoRecorder && videoRecorder.state !== 'inactive') {
+                videoRecorder.stop();
+            }
+            if (audioRecorder && audioRecorder.state !== 'inactive') {
+                audioRecorder.stop();
+            }
+            
+            // Stop all hardware tracks to release camera/mic/screen icons
+            allMediaTracks.forEach(track => track.stop());
+            
+            if(audioCtx && audioCtx.state !== 'closed') {
+                audioCtx.close();
+            }
+
+            // UI Updates
+            startBtn.classList.remove('hidden');
+            stopBtn.classList.add('hidden');
+            statusIdle.classList.remove('hidden');
+            statusRecording.classList.add('hidden');
+            
+            filenameInput.disabled = false;
+            audioCheckbox.disabled = false;
+            subCheckbox.disabled = false;
+        }
+
+        stopBtn.addEventListener('click', stopRecording);
+
+        // Handle Finalization of Video
+        function handleVideoStop() {
+            const videoBlob = new Blob(videoChunks, { type: 'video/webm' });
+            const videoUrl = URL.createObjectURL(videoBlob);
+            
+            previewVideo.src = videoUrl;
+            
+            // Setup Download button
+            let fileName = filenameInput.value.trim();
+            if (!fileName) fileName = `screen_recording_${new Date().getTime()}`;
+            
+            downloadBtn.onclick = () => {
+                const a = document.createElement('a');
+                a.style.display = 'none';
+                a.href = videoUrl;
+                a.download = `${fileName}.webm`;
+                document.body.appendChild(a);
+                a.click();
+                setTimeout(() => document.body.removeChild(a), 100);
+            };
+
+            // Switch UI views
+            configSection.classList.add('hidden');
+            previewSection.classList.remove('hidden');
+            
+            // Reset backend UI states
+            backendStatusContainer.classList.add('hidden');
+            downloadSubBtn.classList.add('hidden');
+            processingStatus.classList.remove('hidden');
+            successStatus.classList.add('hidden');
+        }
+
+        // Handle Finalization of Audio (Mocking backend API call)
+        function handleAudioStop() {
+            const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+            
+            // Here is where you would normally do:
+            // const formData = new FormData();
+            // formData.append('file', audioBlob, 'audio.webm');
+            // fetch('/api/generate-subtitles', { method: 'POST', body: formData }) ...
+            
+            // Show processing UI
+            backendStatusContainer.classList.remove('hidden');
+            
+            // Mocking a network request delay (3 seconds)
+            setTimeout(() => {
+                processingStatus.classList.add('hidden');
+                successStatus.classList.remove('hidden');
+                downloadSubBtn.classList.remove('hidden');
+                
+                let fileName = filenameInput.value.trim() || `screen_recording_${new Date().getTime()}`;
+                
+                // Mock SRT content
+                const mockSrt = `1\n00:00:01,000 --> 00:00:04,000\nThis is an auto-generated subtitle.\n\n2\n00:00:04,500 --> 00:00:08,000\nGenerated purely from the separated audio track.`;
+                const srtBlob = new Blob([mockSrt], { type: 'text/srt' });
+                const srtUrl = URL.createObjectURL(srtBlob);
+                
+                downloadSubBtn.onclick = () => {
+                    const a = document.createElement('a');
+                    a.style.display = 'none';
+                    a.href = srtUrl;
+                    a.download = `${fileName}.srt`;
+                    document.body.appendChild(a);
+                    a.click();
+                    setTimeout(() => document.body.removeChild(a), 100);
+                };
+                
+            }, 3000);
+        }
+
+        // Record New Button
+        newRecordBtn.addEventListener('click', () => {
+            previewVideo.pause();
+            previewVideo.removeAttribute('src'); // clear memory
+            previewSection.classList.add('hidden');
+            configSection.classList.remove('hidden');
+        });
+
+    </script>
+</body>
+</html>
